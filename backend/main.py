@@ -1,108 +1,97 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import os
-import cv2
 import numpy as np
-import joblib
-import matplotlib
-matplotlib.use('Agg')  # Use non-GUI backend to avoid thread issues
+import cv2
 import matplotlib.pyplot as plt
-import base64
-from io import BytesIO
-from skimage.feature import graycomatrix, graycoprops
+import seaborn as sns
+import tensorflow as tf
+from werkzeug.utils import secure_filename
 from flask_cors import CORS
 
-# Initialize Flask app
 app = Flask(__name__)
-CORS(app)  # Allow cross-origin requests
+CORS(app)
 
-# Ensure the uploads directory exists
+# Directories
 UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+HEATMAP_FOLDER = "Heatmap"
+MODEL_PATH = "model/cashew_classifier_model.h5"
 
-# Load the trained model
-MODEL_PATH = "model/new_prediction_train_model.joblib"
-model = joblib.load(MODEL_PATH)
+# Ensure folders exist
+for folder in [UPLOAD_FOLDER, HEATMAP_FOLDER]:
+    if not os.path.exists(folder):
+        os.makedirs(folder)
 
-# Class labels
-classes = ["Discolored", "Jumbo", "Regular", "Special"]
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["HEATMAP_FOLDER"] = HEATMAP_FOLDER
 
-# Function to extract features from an image
-def extract_features(image):
-    hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    h, s, v = cv2.split(hsv_image)
-    
-    color_features = [
-        np.mean(h), np.std(h),
-        np.mean(s), np.std(s),
-        np.mean(v), np.std(v)
-    ]
-    
-    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    glcm = graycomatrix(gray_image, distances=[1], angles=[0], levels=256, symmetric=True, normed=True)
-    texture_features = [
-        graycoprops(glcm, prop).flatten()[0] for prop in ["contrast", "dissimilarity", "homogeneity", "ASM", "energy", "correlation"]
-    ]
-    
-    return color_features + texture_features
+# Load trained Keras model
+model = tf.keras.models.load_model(MODEL_PATH)
+class_labels = ["Discolored", "Jumbo", "Regular", "Special"]
 
-# Function to generate probability graph
-def generate_probability_graph(probabilities):
-    plt.figure(figsize=(6, 4))
-    plt.bar(classes, probabilities, color=['red', 'green', 'blue', 'purple'])
-    plt.xlabel("Cashew Quality Classes")
-    plt.ylabel("Prediction Probability")
-    plt.title("Prediction Probability Distribution")
-    
-    buffer = BytesIO()
-    plt.savefig(buffer, format="png")
-    buffer.seek(0)
-    graph_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+def preprocess_image(image_path):
+    """Preprocess image to match model input shape."""
+    img = cv2.imread(image_path)
+    img = cv2.resize(img, (224, 224))  # Resize to model input size
+    img = img / 255.0  # Normalize pixel values
+    img = np.expand_dims(img, axis=0)  # Add batch dimension
+    return img
+
+def generate_heatmap(image_path):
+    """Generate and save a heatmap of the image."""
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    plt.figure(figsize=(5, 5))
+    sns.heatmap(img, cmap="jet", xticklabels=False, yticklabels=False)
+
+    # Create heatmap filename
+    heatmap_filename = "heatmap_" + os.path.basename(image_path)
+    heatmap_path = os.path.join(HEATMAP_FOLDER, heatmap_filename)
+
+    plt.savefig(heatmap_path, bbox_inches="tight")
     plt.close()
-    return graph_base64
 
-@app.route("/", methods=["GET"])
-def home():
-    return jsonify({"message": "Cashew Quality Prediction API is running"})
+    return heatmap_path
 
 @app.route("/predict", methods=["POST"])
 def predict():
     if "file" not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
-
+        return jsonify({"error": "No file part"}), 400
+    
     file = request.files["file"]
     if file.filename == "":
         return jsonify({"error": "No selected file"}), 400
 
-    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+    filename = secure_filename(file.filename)
+    file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(file_path)
 
-    # Read and preprocess the image
-    image = cv2.imread(file_path)
-    if image is None:
-        return jsonify({"error": "Invalid image format"}), 400
+    # Preprocess image
+    processed_image = preprocess_image(file_path)
 
-    image_resized = cv2.resize(image, (224, 224))  # Resize to standard dimensions
+    # Predict using the model
+    predictions = model.predict(processed_image)[0]
+    predicted_class = class_labels[np.argmax(predictions)]
+    confidence_scores = {class_labels[i]: float(predictions[i]) for i in range(len(class_labels))}
 
-    # Extract features
-    features = extract_features(image_resized)
-
-    # Make prediction
-    prediction = model.predict([features])[0]
-    predicted_class = classes[prediction]
-
-    # Get prediction probabilities
-    probabilities = model.predict_proba([features])[0]
-    probabilities_dict = dict(zip(classes, probabilities))
-
-    # Generate probability graph
-    graph_base64 = generate_probability_graph(probabilities)
+    # Generate heatmap
+    heatmap_path = generate_heatmap(file_path)
+    heatmap_url = f"http://127.0.0.1:5000/heatmap/{os.path.basename(heatmap_path)}"
 
     return jsonify({
-        "image": file.filename,
         "predicted_class": predicted_class,
-        "class_probabilities": probabilities_dict,
-        "graph": graph_base64
+        "confidence_scores": confidence_scores,
+        "image_url": f"http://127.0.0.1:5000/uploads/{filename}",
+        "heatmap_url": heatmap_url
     })
 
+# Route to serve uploaded images
+@app.route("/uploads/<filename>")
+def get_uploaded_file(filename):
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
+# Route to serve heatmap images
+@app.route("/heatmap/<filename>")
+def get_heatmap(filename):
+    return send_from_directory(app.config["HEATMAP_FOLDER"], filename)
+
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
