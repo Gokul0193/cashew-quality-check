@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Gauge } from '@mui/x-charts/Gauge';
-import WarningAlert2 from './WarningAlert2';
 import Loader from './Loader';
 
 const CashewQuality = () => {
@@ -45,7 +44,7 @@ const CashewQuality = () => {
 
   return (
     <div className='text-white font-joan p-8 max-w-3xl mx-auto flex flex-col items-center justify-center gap-10'>
-      <h1 className="text-5xl font-bold mb-4 mt-8">Cashew Quality Check</h1>
+      <h1 className="text-5xl font-bold mb-4 mt-8 text-center">Cashew Quality Check</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4 flex items-center justify-around w-full">
         <input
@@ -83,11 +82,11 @@ const CashewQuality = () => {
 
             <div className="grid grid-cols-2 gap-20 text-white">
               <div>
-                <img src={result.image_url} alt="Uploaded" className="rounded shadow h-50 w-50" />
+                <img src={result.image_url} alt="Uploaded" className="rounded shadow h-30 md:h-50 md:w-50 w-auto" />
                 <h3 className="font-semibold mb-2 text-center mt-5">Uploaded Image</h3>
               </div>
               <div>
-                <img src={result.heatmap_url} alt="Heatmap" className="rounded shadow h-50 w-50" />
+                <img src={result.heatmap_url} alt="Heatmap" className="rounded shadow h-30 md:h-50 md:w-50 w-auto" />
                 <h3 className="font-semibold mb-2 text-center mt-5">Heatmap</h3>
               </div>
             </div>

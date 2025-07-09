@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import './App.css'
-import CashewQualityCheck from './CashewQualityCheck'
+
 import CashewQuality from './CashewQuality'
 
 function App() {
