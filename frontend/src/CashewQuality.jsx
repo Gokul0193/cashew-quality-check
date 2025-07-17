@@ -8,10 +8,10 @@ const CashewQuality = () => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
- 
+
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
-    setResult(null); // clear previous result
+    setResult(null); // Clear previous result
   };
 
   const handleSubmit = async (e) => {
@@ -20,25 +20,26 @@ const CashewQuality = () => {
       setError('Please select a file');
       return;
     }
+
     setLoading(true);
-   
     setError('');
 
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      const res = await axios.post('http://127.0.0.1:5000/predict', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL}/predict`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
       setResult(res.data);
-      console.log(res.data);
+      console.log("data",res.data);
     } catch (err) {
       console.error(err);
       setError('Error connecting to server. Make sure Flask is running.');
     } finally {
       setLoading(false);
-      
     }
   };
 
@@ -53,7 +54,6 @@ const CashewQuality = () => {
           onChange={handleFileChange}
           className="block w-40 text-lg text-white mt-3"
         />
-
         <button
           type="submit"
           className="px-4 py-2 font-joan bg-black text-white border border-white rounded hover:bg-neutral-900"
@@ -63,16 +63,19 @@ const CashewQuality = () => {
         </button>
       </form>
 
-      {error && <div class="flex items-center justify-between max-w-80 w-full bg-red-600/20 text-red-600 px-3 h-10 rounded-sm">
-    <div class="flex items-center">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M10 14.167q.354 0 .593-.24.24-.24.24-.594a.8.8 0 0 0-.24-.593.8.8 0 0 0-.594-.24.8.8 0 0 0-.593.24.8.8 0 0 0-.24.593q0 .354.24.594t.593.24m-.834-3.334h1.667v-5H9.166zm.833 7.5a8.1 8.1 0 0 1-3.25-.656 8.4 8.4 0 0 1-2.645-1.781 8.4 8.4 0 0 1-1.782-2.646A8.1 8.1 0 0 1 1.666 10q0-1.73.656-3.25a8.4 8.4 0 0 1 1.782-2.646 8.4 8.4 0 0 1 2.645-1.781A8.1 8.1 0 0 1 10 1.667q1.73 0 3.25.656a8.4 8.4 0 0 1 2.646 1.781 8.4 8.4 0 0 1 1.781 2.646 8.1 8.1 0 0 1 .657 3.25 8.1 8.1 0 0 1-.657 3.25 8.4 8.4 0 0 1-1.78 2.646 8.4 8.4 0 0 1-2.647 1.781 8.1 8.1 0 0 1-3.25.656" fill="currentColor"/>
-        </svg>
-        <p class="text-lg ml-2 text-white">{error}</p>
-    </div>   
+      {error && (
+        <div className="flex items-center justify-between max-w-80 w-full bg-red-600/20 text-red-600 px-3 h-10 rounded-sm">
+          <div className="flex items-center">
+            <svg width="20" height="20" fill="currentColor">
+              <path d="M10 14.167q.354 0 .593-.24.24-.24.24-.594a.8.8 0 0 0-.24-.593.8.8 0 0 0-.594-.24.8.8 0 0 0-.593.24.8.8 0 0 0-.24.593q0 .354.24.594t.593.24m-.834-3.334h1.667v-5H9.166zm.833 7.5a8.1 8.1 0 0 1-3.25-.656 8.4 8.4 0 0 1-2.645-1.781 8.4 8.4 0 0 1-1.782-2.646A8.1 8.1 0 0 1 1.666 10q0-1.73.656-3.25a8.4 8.4 0 0 1 1.782-2.646 8.4 8.4 0 0 1 2.645-1.781A8.1 8.1 0 0 1 10 1.667q1.73 0 3.25.656a8.4 8.4 0 0 1 2.646 1.781 8.4 8.4 0 0 1 1.781 2.646 8.1 8.1 0 0 1 .657 3.25 8.1 8.1 0 0 1-.657 3.25 8.4 8.4 0 0 1-1.78 2.646 8.4 8.4 0 0 1-2.647 1.781 8.1 8.1 0 0 1-3.25.656" />
+            </svg>
+            <p className="text-lg ml-2 text-white">{error}</p>
+          </div>
+        </div>
+      )}
 
-</div>}
-    {loading&&<Loader/>}
+      {loading && <Loader />}
+
       {result && (
         <>
           <div className='mt-15 flex flex-col gap-10'>
@@ -82,11 +85,11 @@ const CashewQuality = () => {
 
             <div className="grid grid-cols-2 gap-20 text-white">
               <div>
-                <img src={result.image_url} alt="Uploaded" className="rounded shadow h-30 md:h-50 md:w-50 w-auto" />
+                <img src={`${import.meta.env.VITE_API_URL}${result.image_url}`} alt="Uploaded" className="rounded shadow h-30 md:h-50 md:w-50 w-auto" />
                 <h3 className="font-semibold mb-2 text-center mt-5">Uploaded Image</h3>
               </div>
               <div>
-                <img src={result.heatmap_url} alt="Heatmap" className="rounded shadow h-30 md:h-50 md:w-50 w-auto" />
+                <img src={`${import.meta.env.VITE_API_URL}${result.heatmap_url}`} alt="Heatmap" className="rounded shadow h-30 md:h-50 md:w-50 w-auto" />
                 <h3 className="font-semibold mb-2 text-center mt-5">Heatmap</h3>
               </div>
             </div>
@@ -97,7 +100,7 @@ const CashewQuality = () => {
             <div className="flex flex-col gap-8">
               {Object.entries(result.confidence_scores).map(([label, score]) => (
                 <div key={label} className="flex items-center justify-around">
-                     <div className="relative w-[120px] h-[120px]">
+                  <div className="relative w-[120px] h-[120px]">
                     <Gauge
                       value={score * 100}
                       startAngle={0}
@@ -112,7 +115,6 @@ const CashewQuality = () => {
                     </div>
                   </div>
                   <span className="text-lg w-32 text-center">{label}</span>
-                 
                 </div>
               ))}
             </div>
